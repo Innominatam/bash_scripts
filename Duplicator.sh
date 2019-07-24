@@ -1,9 +1,9 @@
 #!/bin/bash
 
 setTime() {
-	echo "Введите время создания копии (через пробел!!!) Час Минута"
-	while [[ True ]]; do
-		read hour min
+	echo "Введите время копирования (через пробел) Час Минута"
+	while true; do
+		read -r hour min
 		if [[ $hour -gt 23 || $hour -lt 0 || $min -gt 59 || $min -lt 0 ]]; then
 			echo "Введите корректные данные"
 		else
@@ -20,10 +20,10 @@ setDays() {
 	echo "5: Friday"
 	echo "6: Saturday"
 	echo "7: Sunday"
-	echo "Введите Дни срабатывания (через пробел!!!), Enter, чтобы будильник срабатывал ежедневно"
+	echo "Введите дни срабатывания (через пробел), Enter, чтобы копироание происходило ежедневно"
 	fst=""
 	days=""
-	read fst
+	read -r fst
 	if [[ $fst == "" ]]; then
 		days="*"
 	else
@@ -39,41 +39,37 @@ setDays() {
 			*) ;;
 			esac
 		done
-		days=$(echo "$days" | sed s/'.$'//g)
+		days=$(echo $days | sed s/'.$'//g)
 	fi
 }
 
 setDirs() {
 	echo "Что вы хотите скопировать (указывать нужно полные пути)?"
-	read from
-	echo "$from"
-	if [ -f $from ]; then
+	read -r from
+	if [ -f "$from" ]; then
 		choosedDuplicator="tar -c"
 		fromParam=""
 		toParam="-f"
-		echo its file
 	else
 		if [ -d "$from" ]; then
 			choosedDuplicator="tar"
 			fromParam=""
 			toParam="-f"
-			echo its dir
 		else
 			if [ -b "$from" ]; then
 				choosedDuplicator="dd"
 				fromParam="if"
 				toParam="of"
-				echo its block
 			else
 				echo incorrect file type
 			fi
 		fi
 	fi
-	echo "Куда вы хотите поместить копию? (укажите полный путь с названием файла)"
-	read to
-	while [[ True ]]; do
-		if [ -f $to ]; then
-			echo Такой файл уже существует!
+	echo "Куда вы хотите поместить копию? укажите полный путь с названием файла"
+	read -r to
+	while true; do
+		if [ -f "$to" ]; then
+			break
 		else
 			if [ -d "$to" ]; then
 				echo Это директория!
@@ -88,64 +84,61 @@ setDirs() {
 	done
 }
 
-newAlarm() {
-	setTime
-	clear
+newDupl() {
 	setDays
+	clear
+	setTime
 	clear
 	setDirs
 	clear
 	crontab -l | {
 		cat
-		echo "$min $hour * * $days $choosedDuplicator $fromParam $from $toParam $to"
-	} #| crontab -
-}
-
-delAlarm() {
-	echo "Выберите будильник, который с которым нужно взаимодействовать: "
-	read choose
-	crontab -l | grep -v "$searchparam" | {
-		cat
-		crontab -l | grep "$searchparam" | sed "$choose d"
+		echo "$min $hour * * $days $choosedDuplicator $fromParam $from $toParam $to #duplicator"
 	} | crontab -
 }
 
-showDups() {
-	crontab -l | grep "dd|tar" | grep -n ".*" | sed s/" \* \* "/"  "/g | sed s/"[~][/].*[/].*[/]"/"  "/
+delDupl() {
+	echo "Выберите будильник, который с которым нужно взаимодействовать: "
+	read -r choose
+	crontab -l | grep -v "#duplicator" | {
+		cat
+		crontab -l | grep "#duplicator" | sed "$choose d"
+	} | crontab -
 }
 
+showDupls() {
+	echo '#' мин час дни_недели чем_копирую что_копирую куда_копирую
+	crontab -l | grep "#duplicator" | grep ".*" -n | sed s/"\*"/"  "/g | sed s/"#duplicator"//g
+}
 
-newAlarm
-
-
-# while [[ True ]]; do
-# 	clear
-# 	echo "0: Просмотреть список будильников"
-# 	echo "1: Установить новый будильник"
-# 	echo "2: Изменить будильник"
-# 	echo "3: удалить будильник"
-# 	echo "4: Выход"
-# 	read command
-# 	clear
-# 	case $command in
-# 	"0")
-# 		showDups
-# 		read -n 1 -s -r -p "Press any key to continue"
-# 		;;
-# 	"1") newAlarm ;;
-# 	"2")
-# 		showDups
-# 		delAlarm
-# 		newAlarm
-# 		;;
-# 	"3")
-# 		showDups
-# 		delAlarm
-# 		;;
-# 	"4") break ;;
-# 	*)
-# 		echo "Некорректная комманда"
-# 		break
-# 		;;
-# 	esac
-# done
+while true; do
+	clear
+	echo "0: Просмотреть список дубликаторов"
+	echo "1: Установить новый дубликатор"
+	echo "2: Изменить дубликатор"
+	echo "3: удалить дубликатор"
+	echo "4: Выход"
+	read -r command
+	clear
+	case $command in
+	"0")
+		showDupls
+		read -n 1 -s -r -p "Press any key to continue"
+		;;
+	"1") newDupl ;;
+	"2")
+		showDupls
+		delDupl
+		newDupl
+		;;
+	"3")
+		showDupls
+		delDupl
+		;;
+	"4") break ;;
+	*)
+		echo "Некорректная комманда"
+		break
+		;;
+	esac
+done
